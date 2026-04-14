@@ -2,97 +2,109 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 
-st.set_page_config(page_title="Spinning AI - Pro Mix", layout="wide")
+# Configuração da Página para visual profissional
+st.set_page_config(page_title="TOTVS | Planej.Contr.Produção - Fiação", layout="wide")
 
-st.title("🧶 Sistema Especialista de Mistura Téxtil")
-st.markdown("---")
+# --- CSS CUSTOMIZADO PARA ESTILO ERP ---
+st.markdown("""
+    <style>
+    /* Topo Azul do ERP */
+    header[data-testid="stHeader"] {
+        background-color: #005495;
+        color: white;
+    }
+    /* Ajuste do Menu Lateral */
+    section[data-testid="stSidebar"] {
+        background-color: #f0f2f6;
+        width: 300px !important;
+    }
+    .main-title {
+        color: #005495;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        font-weight: bold;
+        font-size: 24px;
+        margin-bottom: 20px;
+    }
+    </style>
+    """, unsafe_allow_html=True)
 
-# --- SIDEBAR ---
-st.sidebar.header("1. Entrada de Dados")
-uploaded_file = st.sidebar.file_uploader(
-    "Suba sua planilha de fardos", 
-    type=["xlsx", "csv"],
-    help="Selecione o arquivo HVI contendo os dados de laboratório. Colunas obrigatórias: id_fardo, mic, len, str."
-)
-
-st.sidebar.header("2. Parâmetros de Qualidade")
-target_mic = st.sidebar.slider(
-    "Target Micronaire", 3.0, 5.0, 4.0, step=0.01,
-    help="O valor médio de Micronaire (finura/maturidade) desejado para o fio final. Crucial para garantir a uniformidade do tingimento."
-)
-
-tolerancia = st.sidebar.slider(
-    "Tolerância Mic (+/-)", 0.05, 0.50, 0.20,
-    help="Define a 'janela' de aceitação. Fardos fora desta faixa em relação ao Target serão descartados para manter o CV% baixo."
-)
-
-qtd_desejada = st.sidebar.number_input(
-    "Qtd fardos no Laydown", min_value=1, value=40,
-    help="Quantidade de fardos que serão dispostos lado a lado para o pegador automático na abertura."
-)
-
-# --- LÓGICA DE SELEÇÃO ---
-def selecionar_mix_inteligente(df, qtd, target, tol):
-    limite_inf = target - tol
-    limite_sup = target + tol
-    df_filtrado = df[(df['mic'] >= limite_inf) & (df['mic'] <= limite_sup)].copy()
+# --- SIDEBAR (MENU LATERAL SIMILAR AO PRINT) ---
+with st.sidebar:
+    st.image("https://logodownload.org/wp-content/uploads/2018/09/totvs-logo.png", width=150) # Logo ilustrativo
+    st.markdown("### Planej.Contr.Produção")
     
-    if len(df_filtrado) < qtd:
-        return None, len(df_filtrado)
-
-    df_filtrado['diff'] = df_filtrado['mic'] - target
-    df_sorted = df_filtrado.sort_values(by='diff')
+    st.button("📺 Modo Apresentação", use_container_width=True)
     
-    selecionados = []
-    metade = qtd // 2
-    selecionados.extend(df_sorted.head(metade).to_dict('records'))
-    selecionados.extend(df_sorted.tail(qtd - metade).to_dict('records'))
+    with st.expander("🔍 MONITOR PCP", expanded=True):
+        st.write("Linha de Fiação A")
+        
+    with st.expander("📦 MP (Matéria Prima)"):
+        uploaded_file = st.file_uploader(
+            "Upload de Fardos (HVI)", 
+            type=["xlsx", "csv"],
+            help="Suba a planilha de estoque de fardos aqui."
+        )
     
-    return pd.DataFrame(selecionados), len(df_filtrado)
+    with st.expander("⚙️ PROCESSO"):
+        target_mic = st.slider("Target Micronaire", 3.0, 5.0, 4.0, step=0.01, help="Alvo de finura.")
+        tolerancia = st.slider("Tolerância (+/-)", 0.05, 0.50, 0.20, help="Janela de aceitação.")
+        qtd_desejada = st.number_input("Qtd fardos no Laydown", min_value=1, value=40)
 
-# --- PROCESSAMENTO ---
+    st.markdown("---")
+    st.write("📅 Data: 14/04/2026")
+    st.write("👤 Usuário: PCP_TEXTIL")
+
+# --- CONTEÚDO PRINCIPAL (ÁREA DE TRABALHO) ---
+st.markdown('<p class="main-title">🧶 Gestão de Mistura e Disposição de Fardos (Laydown)</p>', unsafe_allow_html=True)
+
 if uploaded_file:
     try:
+        # Carregamento
         df_estoque = pd.read_csv(uploaded_file) if uploaded_file.name.endswith('.csv') else pd.read_excel(uploaded_file)
         df_estoque.columns = [c.lower().strip() for c in df_estoque.columns]
 
-        if st.button("Gerar Laydown de Alta Estabilidade"):
-            mix_final, disponiveis = selecionar_mix_inteligente(df_estoque, qtd_desejada, target_mic, tolerancia)
+        # Botão Estilizado
+        if st.button("Gerar Laydown Otimizado", type="primary"):
+            
+            # Lógica de Seleção
+            limite_inf = target_mic - tolerancia
+            limite_sup = target_mic + tolerancia
+            df_filtrado = df_estoque[(df_estoque['mic'] >= limite_inf) & (df_estoque['mic'] <= limite_sup)].copy()
 
-            if mix_final is None:
-                st.error(f"Estoque insuficiente! Apenas {disponiveis} fardos atendem à tolerância.")
+            if len(df_filtrado) < qtd_desejada:
+                st.error(f"🚨 Saldo insuficiente em MP. Apenas {len(df_filtrado)} fardos atendem à conformidade.")
             else:
-                # DASHBOARD COM HELP TEXTS
-                m1, m2, m3, m4 = st.columns(4)
+                # Ordenação para equilíbrio
+                df_filtrado['diff'] = df_filtrado['mic'] - target_mic
+                df_sorted = df_filtrado.sort_values(by='diff')
+                
+                mix_final = pd.concat([df_sorted.head(qtd_desejada // 2), df_sorted.tail(qtd_desejada // 2 + qtd_desejada % 2)])
+                
+                # DASHBOARD DE RESULTADOS
                 avg_mic = mix_final['mic'].mean()
                 cv_mic = (mix_final['mic'].std() / avg_mic) * 100
                 
-                m1.metric(
-                    "Média Micronaire", f"{avg_mic:.3f}", f"{avg_mic - target_mic:.4f}",
-                    help="Média real calculada dos fardos selecionados. Deve estar o mais próximo possível do Target para evitar manchas de tingimento."
-                )
-                m2.metric(
-                    "Desvio Padrão (CV%)", f"{cv_mic:.2f}%",
-                    help="Coeficiente de Variação do Micronaire. Valores abaixo de 4% indicam uma mistura homogênea. Acima de 10% indica alto risco de irregularidade no fio."
-                )
-                m3.metric(
-                    "Fardos Aptos", disponiveis,
-                    help="Total de fardos no seu estoque que estão dentro da faixa de tolerância definida na barra lateral."
-                )
-                m4.metric(
-                    "Status de Estabilidade", "ESTÁVEL" if cv_mic < 5 else "ALTO RISCO",
-                    help="Classificação automática baseada no CV%. Lotes estáveis garantem maior eficiência nas máquinas de fiação (anéis e rotores)."
-                )
+                col1, col2, col3, col4 = st.columns(4)
+                col1.metric("Média Mic", f"{avg_mic:.3f}", f"{avg_mic - target_mic:.4f}", help="Média do lote selecionado")
+                col2.metric("Desvio (CV%)", f"{cv_mic:.2f}%", help="Coeficiente de variação")
+                col3.metric("Fardos Aptos", len(df_filtrado), help="Total de fardos que atendem à tolerância")
+                col4.metric("Conformidade", "OK" if cv_mic < 5 else "CRÍTICO")
 
-                st.subheader("📋 Lista de Carregamento")
-                st.info("Abaixo estão os fardos selecionados. Dica: Disponha os fardos alternando entre os valores mais altos e mais baixos da lista para uma mistura íntima perfeita.")
-                
+                # TABELA DE DISPOSIÇÃO
+                st.subheader("📋 Ordem de Carregamento")
                 st.dataframe(
                     mix_final[['id_fardo', 'mic', 'len', 'str']].style.map(
-                        lambda x: 'color: red; font-weight: bold' if abs(x - target_mic) > (tolerancia * 0.8) else '', subset=['mic']
+                        lambda x: 'background-color: #ffcccc' if abs(x - target_mic) > (tolerancia * 0.8) else '', subset=['mic']
                     ),
                     use_container_width=True
                 )
-
+                
+                # Exportar
+                csv = mix_final.to_csv(index=False).encode('utf-8')
+                st.download_button("📂 Exportar para Coletor (CSV)", csv, "laydown_totvs.csv", "text/csv")
     except Exception as e:
-        st.error(f"Erro: {e}")
+        st.error(f"Falha na leitura do arquivo: {e}")
+else:
+    # Tela de Boas-vindas (Vazia como no seu print)
+    st.info("Aguardando importação de dados no menu lateral [MP] para iniciar o planejamento.")
+    st.image("https://cdn-icons-png.flaticon.com/512/4090/4090458.png", width=100) # Ícone de espera
