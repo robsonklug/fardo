@@ -21,27 +21,32 @@ def carregar_estoque_fixo():
     df['mic'] = df['mic'].clip(3.4, 4.9)
     return df
 
-# --- CSS PERSONALIZADO (PADRÃO CORPORATIVO) ---
+# --- CSS PERSONALIZADO (PADRÃO CORPORATIVO SEM ÍCONES) ---
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Segoe+UI:wght@400;700&display=swap');
     html, body, [class*="css"]  { font-family: 'Segoe UI', sans-serif; }
     header[data-testid="stHeader"] { background-color: #005495; color: white; height: 50px; }
     section[data-testid="stSidebar"] { background-color: #f0f4f7; border-right: 1px solid #d1dbe5; }
-    .logo-text { color: #000000; font-size: 48px; font-weight: 800; margin-bottom: 20px; line-height: 1; }
+    
+    /* LOGO TOTVS: 48px, Preto e Negrito */
+    .logo-text { 
+        color: #000000; 
+        font-size: 48px; 
+        font-weight: 800; 
+        margin-bottom: 20px; 
+        line-height: 1;
+    }
+    
     .stMetric { background-color: #ffffff; padding: 15px; border-radius: 5px; border: 1px solid #e6e9ef; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- SIDEBAR (CONFIGURAÇÕES PCP) ---
+# --- SIDEBAR (AJUSTADA: REMOVIDOS PESQUISAR E MONITOR PCP) ---
 with st.sidebar:
     st.markdown('<div class="logo-text">TOTVS</div>', unsafe_allow_html=True)
+    
     st.button("Modo apresentacao", use_container_width=True)
-    st.text_input("Pesquisar", placeholder="Pesquisar funcionalidades...")
-
-    with st.expander("MONITOR PCP", expanded=True):
-        st.write("Visao Geral do Estoque")
-        st.info("Estoque Fixo: 500 fardos carregados.")
 
     with st.expander("CONFIGURACAO DO MIX", expanded=True):
         target_mic = st.slider("Target Micronaire", 3.0, 5.0, 4.07, step=0.01)
@@ -76,7 +81,7 @@ with st.expander("MEMORIAL DESCRITIVO: LOGICA DE SELECAO TECNICA"):
 df_estoque = carregar_estoque_fixo()
 
 if st.button("Executar Planejamento Otimizado", type="primary"):
-    # Execução da Lógica
+    
     limite_inf = target_mic - tolerancia
     limite_sup = target_mic + tolerancia
     df_aptos = df_estoque[(df_estoque['mic'] >= limite_inf) & (df_estoque['mic'] <= limite_sup)].copy()
@@ -88,7 +93,6 @@ if st.button("Executar Planejamento Otimizado", type="primary"):
         df_sorted = df_aptos.sort_values('diff')
         mix = pd.concat([df_sorted.head(qtd_fardos//2), df_sorted.tail(qtd_fardos//2 + qtd_fardos%2)])
         
-        # Dashboard de Indicadores com Help (Tooltip)
         st.markdown("### Indicadores do Lote Gerado")
         c1, c2, c3, c4 = st.columns(4)
         
